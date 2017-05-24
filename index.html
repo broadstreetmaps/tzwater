@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>TZ</title>
+  <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script src="https://d3js.org/d3.geo.projection.v0.min.js" charset="utf-8"></script>
+  <script src="https://d3js.org/queue.v1.min.js"></script>
+  <script src="https://d3js.org/topojson.v1.min.js"></script>
+  <link href='https://fonts.googleapis.com/css?family=Lato:300,400,700,300italic' rel='stylesheet' type='text/css'>
+  <style>
+  * {
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+  }
+  body {
+    margin:0;
+    padding:0;
+    font-family: 'Lato', sans-serif;
+  }
+  #map {
+    display:block;
+    position:relative;
+    width:668px;
+    height:438px;
+  }
+
+  #legend {
+    position:absolute;
+    left:10px;
+    top:385px;
+  }
+  #legend p {
+    font-size:.6em;
+    font-weight:100;
+    color:#444444;
+    margin:2px 0 0; padding:0;
+  }
+  #legend-col, #legend-val {
+    list-style-type: none;
+    margin:0; padding:0;
+    line-height:0;
+  }
+  .legend-col-item,
+  .legend-val-item {
+    text-align:center;
+    font-size:.65em;
+    position:relative;
+    width:25px;
+    min-height:10px;
+    display:inline-block;
+    color:#999;
+  }
+
+  #text {
+    position:absolute;
+    left:375px;
+    top:10px;
+    width:290px;
+    padding-top:0;
+  }
+  #text h2 {
+    font-size:1.45em;
+    font-weight:900;
+    margin:0 0 .15em;
+  }
+  #text p {
+    font-size:.75em;
+    text-align:justify;
+    margin:0 0 0.5em;
+    font-weight:100;
+  }
+
+
+
+  #dist-circle {
+    top:220px;
+    border:1px dashed #c0c0c0;
+    border-radius:100%;
+    height: 182px;
+    width: 182px;
+    margin:auto;
+    display:block;
+  }
+  .the-circle {
+    fill:rgb(239,59,44);
+  }
+  .info {
+    margin:0;padding:0;
+    position:absolute;
+    left:450px;
+    text-align:center !important;
+  }
+  #dist-namescore {
+    font-size: .7em;
+    left: 402px;
+    top: 189px;
+    text-transform: uppercase;
+    font-weight: 100;
+    color: #444444;
+    width: 275px;
+  }
+  #dist-name {
+    font-size:1.3em;
+    font-weight:900;
+    color:#444444;
+  }
+  #dist-score {
+    color:rgb(239,59,44);
+    font-weight:900;
+    margin-right:5px;
+  }
+  #dist-broken {
+    left: 503px;
+    top: 287px;
+    color:#fff;
+    text-shadow:1px 1px 1px rgba(0,0,0,0.6);
+    font-size: .7em;
+  }
+  #dist-broken strong {
+    font-size:1.3em;
+  }
+  #dist-total {
+    left: 512px;
+    top: 387px;
+    font-size: .7em;
+    background-color: #fafafa;
+  }
+  #dist-pop {
+    text-transform:uppercase;
+    font-size:.7em;
+    top: 419px;
+    left: 481px;
+    color: #444444;
+  }
+
+  .map-label {
+    font-size:.62em;
+    font-weight:100;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:#c0c0c0;
+    position:absolute;
+    background-color:#fafafa;
+  }
+  .country {
+    fill:none;
+    stroke:#c0c0c0;
+    stroke-width:.5px;
+    stroke-dasharray:3,3;
+  }
+  .districts {
+    stroke:transparent;
+    stroke-width:0;
+    stroke:none;
+  }
+  .districts:hover {
+    stroke:#e5e5e5;
+    stroke-width:1.5;
+    stroke-linejoin:round;
+  }
+  .coastline {
+    fill:none;
+    stroke:#c0c0c0;
+    stroke-width:.5;
+    stroke-linejoin:round;
+  }
+  .labels {
+    fill: #000;
+    font-family: 'Lato', sans-serif;
+    font-size:0.7em;
+    pointer-events:none;
+  }
+
+  #broad-street-maps {
+    position:absolute;
+    left: 615px;
+    top: 390px;
+    width: 50px;
+  }
+
+  #data-notes-button {
+    position:absolute;
+    top:416px;
+    left:10px;
+    font-family: 'Lato', sans-serif;
+    font-size:0.7em;
+    background-color:transparent;
+    border:none;
+    padding:5px 0;
+    cursor:pointer;
+  }
+  #data-notes-button:active {
+    color:#e5e5e5;
+  }
+  #data-notes-button:focus {
+    outline:none;
+  }
+  #data-notes {
+    padding:1px 10px;
+    background-color:rgba(255,255,255,0.95);
+    position:absolute;
+    top:0;
+    width:680px;
+    height:450px;
+    display:none;
+  }
+  #data-notes.active {
+    display:block;
+  }
+  #data-notes p {
+    font-size:.9em;
+    color:#333;
+  }
+  #data-notes a,
+  #data-notes span {
+    color:steelblue;
+  }
+  #data-notes p span {
+    cursor:pointer;
+    font-weight:900;
+    font-size:.85em;
+  }
+  </style>
+</head>
+
+<body>
+
+  <div id="map"></div>
+  <p id="dist-namescore" class="info"></p>
+  <div id="dist-circle" class="info"></div>
+  <p id="dist-broken" class="info"></p>
+  <p id="dist-total" class="info"></p>
+  <p id="dist-pop" class="info"></p>
+  <div id="legend">
+    <ol id="legend-val"></ol>
+    <ol id="legend-col"></ol>
+    <p>functional points / 1,000 people</p>
+  </div>
+  <div id="text">
+    <h2>Water Failure in Tanzania</h2>
+    <p>According to the Tanzanian Ministry of Water, there have been over 75,000 water points constructed in rural Tanzania over the past 50 years. In spite of this, <strong>47 percent</strong> of Tanzanians still lack access to an improved water source.</p>
+    <p>The Ministry of Water defines full water coverage as <strong>four functional water points per 1,000 people</strong>. Explore the map to see which districts meet this target and which districts are lagging behind.</p>
+  </div>
+  <a href="http://broadstreetmaps.org" target="_blank"><img id="broad-street-maps" src="img/bsm-logo-BOLD2-web.png"></a>
+  <div id="data-notes">
+    <p>This map was made using publicly available data from the Government of Tanzania. The data on the number of functional and non-functional water points is from the Ministry of Water’s <a href="http://maji.go.tz/news_events/view_news_item.php?id=404&intVariationID=1&szTitle=Current" target="_blank">website</a>. Both the population data and the urban/rural classification reflect the 2012 Tanzanian <a href="http://www.nbs.go.tz/" target="_blank">Census</a> reports. District-level and ward-level geographic data was downloaded from the Tanzanian National Bureau of Statistics’ <a href="http://www.nbs.go.tz/" target="_blank">website</a>. The remaining geographic data is from <a href="http://www.naturalearthdata.com/" target="_blank">Natural Earth Data</a>. The map was built on d3.js with web development by <a href="http://mapsam.com">Sam Matthews</a>.</p>
+    <p>Please note that this analysis only includes rural water points, as the Water Point Mapping (WPM) project undertaken by the Tanzanian Ministry of Water was created specifically to monitor rural water points. The population totals for each district, therefore, do not include the population of wards classified as urban (a ward is an administrative boundary in Tanzania — regions are made up of districts, and districts are made up of wards.)</p>
+    <p>The Tanzanian Ministry of Water <a href="http://maji.go.tz/userfiles/wpmnewReport2013(2).pdf" target="_blank">defines</a> water coverage as four functional water points per 1,000 people. In order to get the most accurate analysis, we calculated the water point coverage score for each ward by dividing the total number of functional points by the total rural population and then multiplying by 1,000. We then summarized these scores by district.</p>
+    <p><span onclick="dataNotes();">CLOSE NOTES</span></p>
+  </div>
+  <button id="data-notes-button" onclick="dataNotes();">Data Notes</button>
+
+  <script>
+
+  var labels = [
+    {
+      "name": "kenya",
+      "left": 299,
+      "top": 38
+    },
+    {
+      "name": "uganda",
+      "left": 100,
+      "top": 7
+    },
+    {
+      "name": "burundi",
+      "left": 24,
+      "top": 99
+    },
+    {
+      "name": "rwanda",
+      "left": 30,
+      "top": 54
+    },
+    {
+      "name": "drc",
+      "left": 20,
+      "top": 249
+    },
+    {
+      "name": "zambia",
+      "left": 61,
+      "top": 348
+    },
+    {
+      "name": "malawi",
+      "left": 139,
+      "top": 370
+    },
+    {
+      "name": "mozambique",
+      "left": 257,
+      "top": 430
+    }
+  ];
+
+  var width = 668,
+      height = 438;
+
+  projection = d3.geo.azimuthalEqualArea()
+    .scale(2000)
+    .center([38.5, -6.35])
+    .translate([width / 2, height / 2])
+    .clipAngle(90)
+    .precision(.1);
+
+  path = d3.geo.path()
+    .projection(projection);
+
+  var svg = d3.select("#map").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  var defs = svg.append('defs');
+  var dashWidth = 5;
+  var g = defs.append("pattern")
+      .attr('id', 'hash')
+      .attr('patternUnits', 'userSpaceOnUse')
+      .attr('width', dashWidth)
+      .attr('height', dashWidth)
+      .attr("x", 0).attr("y", 0)
+      .append("g").style("fill", "none").style("stroke", "#111").style("stroke-width", 0.5);
+  g.append("path").attr("d", "M0,0 l"+dashWidth+","+dashWidth);
+  g.append("path").attr("d", "M"+dashWidth+",0 l-"+dashWidth+","+dashWidth);
+
+  // info circle svg space
+  var infoSVG = d3.select("#dist-circle").append("svg")
+      .attr("width", 180)
+      .attr("height", 180);
+
+  var circle = infoSVG.append('circle')
+        .attr('cx', 90)
+        .attr('cy', 90)
+        .attr('r', 0)
+        .attr("class", "the-circle");
+
+  queue()
+    .defer(d3.json, "data/districts.json")
+    .defer(d3.json, "data/borders.json")
+    .defer(d3.json, "data/coastline.json")
+    .defer(d3.json, "data/cities.json")
+    //load more data here
+    .await(drawMap);
+
+  var colors = [
+    { 'color': '#792630', 'value': '<1'},
+    { 'color': '#AD3232', 'value': '1' },
+    { 'color': '#EB5945', 'value': '2' },
+    { 'color': '#F8A282', 'value': '3' },
+    { 'color': '#69ABC2', 'value': '4+'}
+  ];
+
+  // TANZANIA STATS
+  updateTZ();
+
+  // PLACE LABELS
+  var map = document.getElementById("map");
+  for(var i=0; i<labels.length; i++) {
+    var label = document.createElement("div");
+    label.style.left = labels[i].left + "px";
+    label.style.top = labels[i].top + "px";
+    label.className = "map-label";
+    label.innerHTML = labels[i].name;
+    map.appendChild(label);
+  }
+
+  // PLACE LEGEND
+  var legendColors = document.getElementById("legend-col");
+  var legendValues = document.getElementById("legend-val");
+  for(var l=0; l<colors.length; l++) {
+    // place color
+    var item = document.createElement("li");
+    item.className = "legend-col-item";
+    item.style.backgroundColor = colors[l].color;
+    legendColors.appendChild(item);
+
+    // place value
+    var value = document.createElement("li");
+    value.className = "legend-val-item";
+    value.innerHTML = colors[l].value;
+    legendValues.appendChild(value);
+  }
+
+  function drawMap(err, dist, borders, coastline, cities) {
+    svg.selectAll(".coastline")
+      .data(topojson.feature(coastline, coastline.objects.coastline).features)
+      .enter().append("path")
+      .attr("class", "coastline")
+      .attr("d", path);
+
+    svg.selectAll(".country")
+      .data(topojson.feature(borders, borders.objects.borders2).features)
+      .enter().append("path")
+      .attr("class", "country")
+      .attr("d", path);
+
+    svg.selectAll(".districts")
+      .data(topojson.feature(dist, dist.objects.final_shapefile_2).features)
+      .enter().append("path")
+      .attr("class", "districts")
+      .on("mouseover",function(d){
+        var sel = d3.select(this);
+        sel.moveToFront();
+        buildInfo(d.properties);
+      })
+      .on("mouseout", function(d){
+        updateTZ();
+        var sel = d3.selectAll('.labels');
+        sel.moveToFront();
+        var sel = d3.selectAll('.cities');
+        sel.moveToFront();
+      })
+      .attr("style", function(d){
+        if(d.properties.all_points=='nodata' || d.properties.all_points==null || d.properties.shortscore=='nodata') {
+          return "fill:url(#hash);";
+        } else {
+          var score = d.properties.shortscore;
+          if(score >= 4) { return "fill:"+colors[4].color }
+          if(score >= 3) { return "fill:"+colors[3].color }
+          if(score >= 2) { return "fill:"+colors[2].color }
+          if(score >= 1) { return "fill:"+colors[1].color }
+          if(score <  1) { return "fill:"+colors[0].color }
+        }
+      })
+      .attr("d", path);
+
+    svg.selectAll(".cities")
+      .data(topojson.feature(cities, cities.objects.cities).features)
+      .enter().append("path")
+      .attr("class", "cities")
+      .attr("d", path.pointRadius(3));
+
+    svg.selectAll('.labels')
+      .data(topojson.feature(cities, cities.objects.cities).features)
+      .enter().append("text")
+      .attr('transform', function(d) {
+        return 'translate(' + projection(d.geometry.coordinates) + ')';
+      })
+      .attr('dy', -3)
+      .attr('dx', function(d){
+        if(d.properties.name=="Morogoro") {
+          return -53;
+        } else {
+          return 3;
+        }
+      }) // horizontal offset
+      .text(function(d) {
+        return d.properties.name;
+      })
+      .attr('class', 'labels');
+  }
+
+  function buildInfo(p) {
+    var score = p.shortscore > 0 && p.Pop > 0 ? p.shortscore : "No Data";
+    var broken = p.broken > 0 && p.Pop > 0 ? p.broken : "No Data";
+    var allPoints = p.all_points > 0 && p.Pop > 0 ? p.all_points : "No Data";
+    var population = p.Pop > 0 && p.shortscore > 0 ? addCommas(p.Pop) : "No Data";
+    document.getElementById("dist-namescore").innerHTML="<span id='dist-name'>" + p.District_N + "</span><br><span id='dist-score'>" + score + "</span> functional points / 1,000 people"; // name
+    document.getElementById("dist-broken").innerHTML="<strong>" + broken + "</strong><br>Non-Functional"; // total points
+    document.getElementById("dist-total").innerHTML="<strong>" + allPoints + "</strong><br>Total Points"; // total points
+    document.getElementById("dist-pop").innerHTML="Population: " + population; // population
+    updateCircle(p.broken, p.all_points, score, p.Pop);
+  }
+
+  function updateTZ() {
+    document.getElementById("dist-namescore").innerHTML="<span id='dist-name'>Tanzania</span><br><span id='dist-score'>1.07</span> functional points / 1,000 people"; // name
+    document.getElementById("dist-broken").innerHTML="<strong>29,080</strong><br>Non-Functional"; // total points
+    document.getElementById("dist-total").innerHTML="<strong>75,777</strong><br>Total Points"; // total points
+    document.getElementById("dist-pop").innerHTML="Population: 43,625,354"; // population
+    updateCircle(29080, 75777, 0, 43625354);
+  }
+
+  function updateCircle(broken, total, score, pop) {
+    if (total == null
+        || broken == null
+        || total == 'nodata'
+        || broken == 'nodata'
+        || score == "No Data"
+        || !pop ) {
+      var radius = 1;
+    } else {
+      var radius = ( broken == 0 ? 1 : (broken / total) * 90);
+    }
+    infoSVG
+      .select('circle').transition().duration(300)
+      .attr('r', +radius);
+  }
+
+  function addCommas(n) {
+    var str = n.toString(),
+      len = str.length,
+      num = str.slice(0, len%3);
+
+    for(i=0;i<Math.floor(len/3);i++) {
+      num = num + ',' + str.substr(len%3+(3*i), 3);
+    }
+
+    if(num.slice(0,1)===',') {
+      num = num.slice(1);
+    }
+
+    return num;
+  }
+
+  d3.selection.prototype.moveToFront = function() {
+    return this.each(function(){
+      this.parentNode.appendChild(this);
+    });
+  };
+
+  function dataNotes() {
+    var dnotes = document.getElementById('data-notes');
+    dnotesClass = dnotes.className;
+    if(dnotesClass == "active") {
+      dnotes.className = "";
+    } else {
+      dnotes.className = "active";
+    }
+  }
+  </script>
+</body>
+</html>
